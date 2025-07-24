@@ -1,0 +1,48 @@
+name: Aegis ASM Scheduled Scan
+
+on:
+  schedule:
+    # Run at 2:00 AM every Saturday
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target Domain to Scan'
+        required: true
+        default: 'example.com'
+
+jobs:
+  recon-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nmap
+          pip install -r requirements.txt
+
+      - name: Execute Aegis Engine
+        env:
+          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          if [ -z "$TARGET" ]; then
+            TARGET="example.com"
+          fi
+          python asm.py -d $TARGET -o report.json
+
+      - name: Upload ASM JSON Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: Aegis-ASM-Report
+          path: report.json
+          retention-days: 14
